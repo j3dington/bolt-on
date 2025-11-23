@@ -15,8 +15,8 @@
   <script type="text/babel">
     const { useState, useRef, useEffect } = React;
 
-      const SITE_PASSWORD = 'CompassTesting2025!'; 
-    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyy8TSjfhpRQv5apUYqcZce9XwHZzleQJ9I4NndMWVzMtNvllM3RNQiaLZGwmQ5EsDlfQ/exec';
+    const SITE_PASSWORD = 'CompassTesting2025!'; 
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyzGBzGm4s_N7kk2Gm9VIyuyPGY3lhfy6xLPLY2WrrO9WFwb7CQvJTJUdu5Rt7gDV8MKQ/execE';
 
     function LoginScreen({ onLogin }) {
       const [password, setPassword] = useState('');
@@ -73,7 +73,6 @@
       const [machineSerial, setMachineSerial] = useState('');
       const [parts, setParts] = useState([]);
       const [currentPart, setCurrentPart] = useState('');
-      const [currentQuantity, setCurrentQuantity] = useState('');
       const [currentReason, setCurrentReason] = useState('');
       const [techName, setTechName] = useState('');
       const [scanMode, setScanMode] = useState('machine');
@@ -103,12 +102,11 @@
             setStatusMessage('Machine scanned! Now scan a part.');
           } else if (scanMode === 'part') {
             setCurrentPart(value);
-            setScanMode('quantity');
-            setStatusMessage('Part scanned! Enter quantity.');
-          } else if (scanMode === 'quantity') {
-            setCurrentQuantity(value);
             setScanMode('reason');
-            setStatusMessage('Quantity entered! Type reason.');
+            setStatusMessage('Part scanned! Scan reason code.');
+          } else if (scanMode === 'reason') {
+            setCurrentReason(value);
+            addPart();
           } else if (scanMode === 'name') {
             setTechName(value);
             handleSubmit(value);
@@ -119,18 +117,16 @@
       };
 
       const addPart = () => {
-        if (currentPart && currentQuantity && currentReason) {
+        if (currentPart && currentReason) {
           setParts([...parts, {
             part: currentPart,
-            quantity: currentQuantity,
             reason: currentReason,
             id: Date.now()
           }]);
           setCurrentPart('');
-          setCurrentQuantity('');
           setCurrentReason('');
           setScanMode('part');
-          setStatusMessage('Part added! Scan another part or submit.');
+          setStatusMessage('Part added! Scan another part or scan name to submit.');
         }
       };
 
@@ -192,8 +188,7 @@
         switch(scanMode) {
           case 'machine': return '📱 Scan Machine Serial Number';
           case 'part': return '🔧 Scan Part Name';
-          case 'quantity': return '🔢 Scan or Type Quantity';
-          case 'reason': return '✍️ Type Replacement Reason';
+          case 'reason': return '📝 Scan Reason Code';
           case 'name': return '👤 Scan Your Name to Submit';
           default: return 'Scan Input';
         }
@@ -247,32 +242,10 @@
                   </div>
                 )}
                 
-                {currentQuantity && (
+                {currentReason && scanMode === 'reason' && (
                   <div className="mb-3">
-                    <label className="text-slate-400 text-sm">Quantity</label>
-                    <p className="text-white text-lg">{currentQuantity}</p>
-                  </div>
-                )}
-                
-                {scanMode === 'reason' && (
-                  <div className="mb-3">
-                    <label className="text-slate-400 text-sm block mb-2">Reason</label>
-                    <input
-                      type="text"
-                      value={currentReason}
-                      onChange={(e) => setCurrentReason(e.target.value)}
-                      placeholder="Type reason..."
-                      className="w-full p-3 bg-slate-700 border border-slate-600 rounded text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') addPart();
-                      }}
-                    />
-                    <button
-                      onClick={addPart}
-                      className="w-full mt-2 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded transition-colors"
-                    >
-                      ➕ Add Part
-                    </button>
+                    <label className="text-slate-400 text-sm">Reason</label>
+                    <p className="text-white text-lg">{currentReason}</p>
                   </div>
                 )}
               </div>
@@ -286,7 +259,6 @@
                     <div key={part.id} className="bg-slate-700 rounded p-4 flex justify-between items-start">
                       <div className="flex-1">
                         <p className="text-white font-semibold">{part.part}</p>
-                        <p className="text-slate-300 text-sm">Qty: {part.quantity}</p>
                         <p className="text-slate-400 text-sm">{part.reason}</p>
                       </div>
                       <button
@@ -340,6 +312,3 @@
   </script>
 </body>
 </html>
-
-
-
