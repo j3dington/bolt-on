@@ -15,10 +15,62 @@
   <script type="text/babel">
     const { useState, useRef, useEffect } = React;
 
-    const SITE_PASSWORD = 'CompassTesting2025!';
+    // ⚠️ CHANGE THESE SETTINGS ⚠️
+    const SITE_PASSWORD = 'CompassTesting2025!';  // Change this to your desired password
     const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/library/d/1Alobr0QIEQqEq8kYznFP75pOy9i8QD0STS7wWtSuSmAQdF-bYTn38GTD/2';
 
+    function LoginScreen({ onLogin }) {
+      const [password, setPassword] = useState('');
+      const [error, setError] = useState('');
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        if (password === SITE_PASSWORD) {
+          onLogin();
+        } else {
+          setError('Incorrect password. Try again.');
+          setPassword('');
+        }
+      };
+
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center p-4">
+          <div className="bg-slate-800 rounded-lg shadow-2xl p-8 w-full max-w-md border border-slate-700">
+            <div className="text-center mb-6">
+              <h1 className="text-3xl font-bold text-white mb-2">🔒 Parts Tracker</h1>
+              <p className="text-slate-400">Enter password to access</p>
+            </div>
+            
+            <form onSubmit={handleSubmit}>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Password"
+                className="w-full p-4 bg-slate-700 border border-slate-600 rounded text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none text-lg mb-4"
+                autoFocus
+              />
+              
+              {error && (
+                <div className="bg-red-900 border border-red-500 rounded p-3 mb-4">
+                  <p className="text-red-100 text-sm">{error}</p>
+                </div>
+              )}
+              
+              <button
+                type="submit"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 px-4 rounded transition-colors text-lg"
+              >
+                🔓 Unlock Tracker
+              </button>
+            </form>
+          </div>
+        </div>
+      );
+    }
+
     function PartsTracker() {
+      const [isAuthenticated, setIsAuthenticated] = useState(false);
       const [machineSerial, setMachineSerial] = useState('');
       const [parts, setParts] = useState([]);
       const [currentPart, setCurrentPart] = useState('');
@@ -32,10 +84,14 @@
       const inputRef = useRef(null);
 
       useEffect(() => {
-        if (inputRef.current) {
+        if (inputRef.current && isAuthenticated) {
           inputRef.current.focus();
         }
-      }, [scanMode]);
+      }, [scanMode, isAuthenticated]);
+
+      if (!isAuthenticated) {
+        return <LoginScreen onLogin={() => setIsAuthenticated(true)} />;
+      }
 
       const handleScan = (e) => {
         if (e.key === 'Enter') {
@@ -93,6 +149,7 @@
         setStatusMessage('Submitting to Google Sheets...');
 
         const submissionData = {
+          secretKey: SITE_PASSWORD,  // Uses the same password for extra security
           machineSerial,
           techName: scannedName,
           timestamp: new Date().toISOString(),
@@ -283,5 +340,5 @@
     root.render(<PartsTracker />);
   </script>
 </body>
-
 </html>
+
