@@ -15,8 +15,9 @@
   <script type="text/babel">
     const { useState, useRef, useEffect } = React;
 
-    const SITE_PASSWORD = 'CompassTesting2025!'; 
-    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyzGBzGm4s_N7kk2Gm9VIyuyPGY3lhfy6xLPLY2WrrO9WFwb7CQvJTJUdu5Rt7gDV8MKQ/execE';
+    
+    const SITE_PASSWORD = 'CompassTesting2025!';  
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/library/d/1Alobr0QIEQqEq8kYznFP75pOy9i8QD0STS7wWtSuSmAQdF-bYTn38GTD/2';
 
     function LoginScreen({ onLogin }) {
       const [password, setPassword] = useState('');
@@ -105,8 +106,16 @@
             setScanMode('reason');
             setStatusMessage('Part scanned! Scan reason code.');
           } else if (scanMode === 'reason') {
-            setCurrentReason(value);
-            addPart();
+            // Add the part with the scanned reason
+            setParts([...parts, {
+              part: currentPart,
+              reason: value,
+              id: Date.now()
+            }]);
+            setCurrentPart('');
+            setCurrentReason('');
+            setScanMode('part'); // Go back to scanning parts
+            setStatusMessage('Part added! Scan another part or scan name to submit.');
           } else if (scanMode === 'name') {
             setTechName(value);
             handleSubmit(value);
