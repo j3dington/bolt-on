@@ -15,9 +15,8 @@
   <script type="text/babel">
     const { useState, useRef, useEffect } = React;
 
-    // ⚠️ CHANGE GOOGLE SCRIPT URL ⚠️
     const SITE_PASSWORD = 'CompassTesting2025!';
-    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyzGBzGm4s_N7kk2Gm9VIyuyPGY3lhfy6xLPLY2WrrO9WFwb7CQvJTJUdu5Rt7gDV8MKQ/exec';
+    const GOOGLE_SCRIPT_URL = 'PASTE_YOUR_WEB_APP_URL_HERE';
 
     function LoginScreen({ onLogin }) {
       const [password, setPassword] = useState('');
@@ -85,10 +84,10 @@
       const inputRef = useRef(null);
 
       useEffect(() => {
-        if (inputRef.current && isAuthenticated) {
+        if (inputRef.current && isAuthenticated && !showSuccessScreen) {
           inputRef.current.focus();
         }
-      }, [scanMode, isAuthenticated]);
+      }, [scanMode, isAuthenticated, showSuccessScreen]);
 
       if (!isAuthenticated) {
         return <LoginScreen onLogin={() => setIsAuthenticated(true)} />;
@@ -128,20 +127,37 @@
           const value = e.target.value.trim();
           if (!value) return;
 
-          // Check for special markers
-          const isName = value.includes('
+          const isName = value.includes('$');
+          const isReason = value.includes('&');
 
-      const addPart = () => {
-        if (currentPart && currentReason) {
-          setParts([...parts, {
-            part: currentPart,
-            reason: currentReason,
-            id: Date.now()
-          }]);
-          setCurrentPart('');
-          setCurrentReason('');
-          setScanMode('part');
-          setStatusMessage('Part added! Scan another part or scan name to submit.');
+          if (scanMode === 'machine') {
+            setMachineSerial(value);
+            setScanMode('part');
+            setStatusMessage('Machine scanned! Now scan a part.');
+          } else if (scanMode === 'part') {
+            if (parts.length > 0 && isName) {
+              const cleanName = value.replace(/\$/g, '');
+              setTechName(cleanName);
+              handleSubmit(cleanName);
+            } else {
+              setCurrentPart(value);
+              setScanMode('reason');
+              setStatusMessage('Part scanned! Scan reason code.');
+            }
+          } else if (scanMode === 'reason') {
+            const cleanReason = isReason ? value.replace(/&/g, '') : value;
+            setParts([...parts, {
+              part: currentPart,
+              reason: cleanReason,
+              id: Date.now()
+            }]);
+            setCurrentPart('');
+            setCurrentReason('');
+            setScanMode('part');
+            setStatusMessage('Part added! Scan another part or scan name to submit.');
+          }
+          
+          e.target.value = '';
         }
       };
 
@@ -159,7 +175,7 @@
         setStatusMessage('Submitting to Google Sheets...');
 
         const submissionData = {
-          secretKey: SITE_PASSWORD,  // Uses the same password for extra security
+          secretKey: SITE_PASSWORD,
           machineSerial,
           techName: scannedName,
           timestamp: new Date().toISOString(),
@@ -176,21 +192,9 @@
             body: JSON.stringify(submissionData)
           });
 
-          setStatusMessage('✓ Submitted successfully!');
-          
-          setTimeout(() => {
-            setMachineSerial('');
-            setParts([]);
-            setCurrentPart('');
-            setCurrentQuantity('');
-            setCurrentReason('');
-            setTechName('');
-            setScanMode('machine');
-            setIsSubmitting(false);
-            setStatusMessage('Ready for next machine!');
-            
-            setTimeout(() => setStatusMessage(''), 2000);
-          }, 1000);
+          setLastSubmission(submissionData);
+          setShowSuccessScreen(true);
+          setIsSubmitting(false);
 
         } catch (error) {
           console.error('Submission error:', error);
@@ -199,12 +203,24 @@
         }
       };
 
+      const startNewMachine = () => {
+        setMachineSerial('');
+        setParts([]);
+        setCurrentPart('');
+        setCurrentReason('');
+        setTechName('');
+        setScanMode('machine');
+        setIsSubmitting(false);
+        setStatusMessage('');
+        setShowSuccessScreen(false);
+        setLastSubmission(null);
+      };
+
       const getCurrentPrompt = () => {
         switch(scanMode) {
           case 'machine': return '📱 Scan Machine Serial Number';
           case 'part': return parts.length > 0 ? '🔧 Scan Next Part (or scan $Name to submit)' : '🔧 Scan Part Name';
           case 'reason': return '📝 Scan Reason Code (&Reason)';
-          case 'name': return '👤 Scan Your Name to Submit';
           default: return 'Scan Input';
         }
       };
@@ -246,23 +262,13 @@
               </div>
             )}
 
-            {scanMode !== 'machine' && scanMode !== 'name' && (
+            {scanMode !== 'machine' && currentPart && (
               <div className="bg-slate-800 rounded-lg shadow-xl p-6 mb-4 border border-slate-700">
                 <h3 className="text-white font-semibold mb-4">Current Part</h3>
-                
-                {currentPart && (
-                  <div className="mb-3">
-                    <label className="text-slate-400 text-sm">Part</label>
-                    <p className="text-white text-lg">{currentPart}</p>
-                  </div>
-                )}
-                
-                {currentReason && scanMode === 'reason' && (
-                  <div className="mb-3">
-                    <label className="text-slate-400 text-sm">Reason</label>
-                    <p className="text-white text-lg">{currentReason}</p>
-                  </div>
-                )}
+                <div className="mb-3">
+                  <label className="text-slate-400 text-sm">Part</label>
+                  <p className="text-white text-lg">{currentPart}</p>
+                </div>
               </div>
             )}
 
@@ -293,230 +299,6 @@
                     </p>
                   </div>
                 )}
-              </div>
-            )}
-
-            {scanMode === 'name' && parts.length > 0 && (
-              <div className="bg-slate-800 rounded-lg shadow-xl p-6 mb-4 border border-slate-700">
-                <p className="text-slate-300 mb-3">Scan your name above to submit</p>
-              </div>
-            )}
-
-          </div>
-        </div>
-      );
-    }
-
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<PartsTracker />);
-  </script>
-</body>
-</html>);
-          const isReason = value.includes('&');
-
-          if (scanMode === 'machine') {
-            setMachineSerial(value);
-            setScanMode('part');
-            setStatusMessage('Machine scanned! Now scan a part.');
-          } else if (scanMode === 'part') {
-            // Check if this is a name (to submit)
-            if (parts.length > 0 && isName) {
-              const cleanName = value.replace(/\$/g, ''); // Remove $ symbol
-              setTechName(cleanName);
-              handleSubmit(cleanName);
-            } else {
-              setCurrentPart(value);
-              setScanMode('reason');
-              setStatusMessage('Part scanned! Scan reason code.');
-            }
-          } else if (scanMode === 'reason') {
-            const cleanReason = isReason ? value.replace(/&/g, '') : value; // Remove & symbol if present
-            // Add the part with the scanned reason
-            setParts([...parts, {
-              part: currentPart,
-              reason: cleanReason,
-              id: Date.now()
-            }]);
-            setCurrentPart('');
-            setCurrentReason('');
-            setScanMode('part'); // Always go back to scanning more parts
-            setStatusMessage('Part added! Scan another part or scan name to submit.');
-          }
-          
-          e.target.value = '';
-        }
-      };
-
-      // Helper function no longer needed - using $ and & markers instead
-
-      const addPart = () => {
-        if (currentPart && currentReason) {
-          setParts([...parts, {
-            part: currentPart,
-            reason: currentReason,
-            id: Date.now()
-          }]);
-          setCurrentPart('');
-          setCurrentReason('');
-          setScanMode('part');
-          setStatusMessage('Part added! Scan another part or scan name to submit.');
-        }
-      };
-
-      const removePart = (id) => {
-        setParts(parts.filter(p => p.id !== id));
-      };
-
-      const handleSubmit = async (scannedName = techName) => {
-        if (!machineSerial || parts.length === 0 || !scannedName) {
-          alert('Please fill in machine serial, at least one part, and technician name');
-          return;
-        }
-
-        setIsSubmitting(true);
-        setStatusMessage('Submitting to Google Sheets...');
-
-        const submissionData = {
-          secretKey: SITE_PASSWORD,  // Uses the same password for extra security
-          machineSerial,
-          techName: scannedName,
-          timestamp: new Date().toISOString(),
-          parts: parts
-        };
-
-        try {
-          const response = await fetch(GOOGLE_SCRIPT_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(submissionData)
-          });
-
-          setStatusMessage('✓ Submitted successfully!');
-          
-          setTimeout(() => {
-            setMachineSerial('');
-            setParts([]);
-            setCurrentPart('');
-            setCurrentQuantity('');
-            setCurrentReason('');
-            setTechName('');
-            setScanMode('machine');
-            setIsSubmitting(false);
-            setStatusMessage('Ready for next machine!');
-            
-            setTimeout(() => setStatusMessage(''), 2000);
-          }, 1000);
-
-        } catch (error) {
-          console.error('Submission error:', error);
-          setStatusMessage('⚠️ Error submitting. Check console.');
-          setIsSubmitting(false);
-        }
-      };
-
-      const getCurrentPrompt = () => {
-        switch(scanMode) {
-          case 'machine': return '📱 Scan Machine Serial Number';
-          case 'part': return parts.length > 0 ? '🔧 Scan Next Part (or scan name to submit)' : '🔧 Scan Part Name';
-          case 'reason': return '📝 Scan Reason Code';
-          case 'name': return '👤 Scan Your Name to Submit';
-          default: return 'Scan Input';
-        }
-      };
-
-      return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-4">
-          <div className="max-w-2xl mx-auto">
-            
-            <div className="bg-slate-800 rounded-lg shadow-xl p-6 mb-4 border border-slate-700">
-              <h1 className="text-3xl font-bold text-white mb-2">⚙️ Parts Tracker</h1>
-              <p className="text-slate-400">Scan to log replacements</p>
-            </div>
-
-            <div className="bg-blue-900 border-2 border-blue-500 rounded-lg p-4 mb-4">
-              <p className="text-blue-100 text-lg font-semibold">{getCurrentPrompt()}</p>
-            </div>
-
-            {statusMessage && (
-              <div className="bg-green-900 border border-green-500 rounded-lg p-3 mb-4">
-                <p className="text-green-100">{statusMessage}</p>
-              </div>
-            )}
-
-            <div className="bg-slate-800 rounded-lg shadow-xl p-6 mb-4 border border-slate-700">
-              <input
-                ref={inputRef}
-                type="text"
-                onKeyDown={handleScan}
-                placeholder="Scanner ready..."
-                className="w-full p-3 bg-slate-700 border border-slate-600 rounded text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none text-lg"
-                autoFocus
-              />
-            </div>
-
-            {machineSerial && (
-              <div className="bg-slate-800 rounded-lg shadow-xl p-4 mb-4 border border-slate-700">
-                <label className="text-slate-400 text-sm">Machine Serial</label>
-                <p className="text-white text-xl font-semibold">{machineSerial}</p>
-              </div>
-            )}
-
-            {scanMode !== 'machine' && scanMode !== 'name' && (
-              <div className="bg-slate-800 rounded-lg shadow-xl p-6 mb-4 border border-slate-700">
-                <h3 className="text-white font-semibold mb-4">Current Part</h3>
-                
-                {currentPart && (
-                  <div className="mb-3">
-                    <label className="text-slate-400 text-sm">Part</label>
-                    <p className="text-white text-lg">{currentPart}</p>
-                  </div>
-                )}
-                
-                {currentReason && scanMode === 'reason' && (
-                  <div className="mb-3">
-                    <label className="text-slate-400 text-sm">Reason</label>
-                    <p className="text-white text-lg">{currentReason}</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {parts.length > 0 && (
-              <div className="bg-slate-800 rounded-lg shadow-xl p-6 mb-4 border border-slate-700">
-                <h3 className="text-white font-semibold mb-4">Parts List ({parts.length})</h3>
-                <div className="space-y-3">
-                  {parts.map((part) => (
-                    <div key={part.id} className="bg-slate-700 rounded p-4 flex justify-between items-start">
-                      <div className="flex-1">
-                        <p className="text-white font-semibold">{part.part}</p>
-                        <p className="text-slate-400 text-sm">{part.reason}</p>
-                      </div>
-                      <button
-                        onClick={() => removePart(part.id)}
-                        className="text-red-400 hover:text-red-300 p-2 text-xl"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                
-                {scanMode === 'part' && parts.length > 0 && (
-                  <div className="mt-4 p-4 bg-blue-900 border border-blue-500 rounded">
-                    <p className="text-blue-100 text-sm text-center">
-                      💡 Tip: Scan a name (with space) to submit, or scan another part to continue
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {scanMode === 'name' && parts.length > 0 && (
-              <div className="bg-slate-800 rounded-lg shadow-xl p-6 mb-4 border border-slate-700">
-                <p className="text-slate-300 mb-3">Scan your name above to submit</p>
               </div>
             )}
 
