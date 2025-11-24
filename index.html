@@ -74,6 +74,8 @@
       });
       const [machineSerial, setMachineSerial] = useState('');
       const [parts, setParts] = useState([]);
+      const [currentPart, setCurrentPart] = useState('');
+      const [currentQuantity, setCurrentQuantity] = useState('');
       const [techName, setTechName] = useState('');
       const [scanMode, setScanMode] = useState('machine');
       const [isSubmitting, setIsSubmitting] = useState(false);
@@ -94,6 +96,8 @@
         setShowSuccessScreen(false);
         setMachineSerial('');
         setParts([]);
+        setCurrentPart('');
+        setCurrentQuantity('');
         setTechName('');
         setScanMode('machine');
         setIsSubmitting(false);
@@ -145,10 +149,7 @@
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     const value = e.target.value.trim();
-                    console.log('Scanned on success screen:', value);
-                    
                     if (value.toLowerCase().includes('next machine') || value.toLowerCase() === 'nextmachine') {
-                      console.log('MATCH! Calling startNewMachine()');
                       e.target.value = '';
                       startNewMachine();
                     } else {
@@ -182,22 +183,37 @@
           if (scanMode === 'machine') {
             setMachineSerial(value);
             setScanMode('part');
-            setStatusMessage('Machine scanned! Now scan parts.');
+            setStatusMessage('Machine scanned! Now scan a part.');
           } else if (scanMode === 'part') {
             if (parts.length > 0 && isName) {
               const cleanName = value.replace(/\$/g, '');
               setTechName(cleanName);
               handleSubmit(cleanName);
             } else {
-              setParts([...parts, {
-                part: value,
-                id: Date.now()
-              }]);
-              setStatusMessage('Part added! Scan another part or scan name to submit.');
+              setCurrentPart(value);
+              setScanMode('quantity');
+              setStatusMessage('Part scanned! Scan or enter quantity.');
             }
+          } else if (scanMode === 'quantity') {
+            setCurrentQuantity(value);
+            addPart(value);
           }
           
           e.target.value = '';
+        }
+      };
+
+      const addPart = (qty) => {
+        if (currentPart && qty) {
+          setParts([...parts, {
+            part: currentPart,
+            quantity: qty,
+            id: Date.now()
+          }]);
+          setCurrentPart('');
+          setCurrentQuantity('');
+          setScanMode('part');
+          setStatusMessage('Part added! Scan another part or scan $Name to submit.');
         }
       };
 
@@ -247,6 +263,7 @@
         switch(scanMode) {
           case 'machine': return '📱 Scan Machine Serial Number';
           case 'part': return parts.length > 0 ? '🔧 Scan Next Part (or scan $Name to submit)' : '🔧 Scan Part Name';
+          case 'quantity': return '🔢 Scan or Enter Quantity';
           default: return 'Scan Input';
         }
       };
@@ -288,6 +305,16 @@
               </div>
             )}
 
+            {currentPart && scanMode === 'quantity' && (
+              <div className="bg-slate-800 rounded-lg shadow-xl p-6 mb-4 border border-slate-700">
+                <h3 className="text-white font-semibold mb-4">Current Part</h3>
+                <div className="mb-3">
+                  <label className="text-slate-400 text-sm">Part</label>
+                  <p className="text-white text-lg">{currentPart}</p>
+                </div>
+              </div>
+            )}
+
             {parts.length > 0 && (
               <div className="bg-slate-800 rounded-lg shadow-xl p-6 mb-4 border border-slate-700">
                 <h3 className="text-white font-semibold mb-4">Parts List ({parts.length})</h3>
@@ -296,6 +323,7 @@
                     <div key={part.id} className="bg-slate-700 rounded p-4 flex justify-between items-start">
                       <div className="flex-1">
                         <p className="text-white font-semibold">{part.part}</p>
+                        <p className="text-slate-300 text-sm">Qty: {part.quantity}</p>
                       </div>
                       <button
                         onClick={() => removePart(part.id)}
