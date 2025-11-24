@@ -16,7 +16,7 @@
     const { useState, useRef, useEffect } = React;
 
     const SITE_PASSWORD = 'CompassTesting2025!';
-    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwk5XCy8X-4TAs1swo4tPJX9zEpL3sn6WDhLzGe7FezFawsO-F6A0MIi4hRAbbQbuQQpg/exec';
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/a/macros/compassmining.io/s/AKfycbzM11QmVv-v4xgyfy8xAN0_mOTsAGAHMJ8idtePCDhzDFvv33OQUvAmfetJBxd5_SNl/exec';
 
     function LoginScreen({ onLogin }) {
       const [password, setPassword] = useState('');
@@ -74,8 +74,6 @@
       });
       const [machineSerial, setMachineSerial] = useState('');
       const [parts, setParts] = useState([]);
-      const [currentPart, setCurrentPart] = useState('');
-      const [currentReason, setCurrentReason] = useState('');
       const [techName, setTechName] = useState('');
       const [scanMode, setScanMode] = useState('machine');
       const [isSubmitting, setIsSubmitting] = useState(false);
@@ -96,8 +94,6 @@
         setShowSuccessScreen(false);
         setMachineSerial('');
         setParts([]);
-        setCurrentPart('');
-        setCurrentReason('');
         setTechName('');
         setScanMode('machine');
         setIsSubmitting(false);
@@ -182,33 +178,23 @@
           if (!value) return;
 
           const isName = value.includes('$');
-          const isReason = value.includes('&');
 
           if (scanMode === 'machine') {
             setMachineSerial(value);
             setScanMode('part');
-            setStatusMessage('Machine scanned! Now scan a part.');
+            setStatusMessage('Machine scanned! Now scan parts.');
           } else if (scanMode === 'part') {
             if (parts.length > 0 && isName) {
               const cleanName = value.replace(/\$/g, '');
               setTechName(cleanName);
               handleSubmit(cleanName);
             } else {
-              setCurrentPart(value);
-              setScanMode('reason');
-              setStatusMessage('Part scanned! Scan reason code.');
+              setParts([...parts, {
+                part: value,
+                id: Date.now()
+              }]);
+              setStatusMessage('Part added! Scan another part or scan name to submit.');
             }
-          } else if (scanMode === 'reason') {
-            const cleanReason = isReason ? value.replace(/&/g, '') : value;
-            setParts([...parts, {
-              part: currentPart,
-              reason: cleanReason,
-              id: Date.now()
-            }]);
-            setCurrentPart('');
-            setCurrentReason('');
-            setScanMode('part');
-            setStatusMessage('Part added! Scan another part or scan name to submit.');
           }
           
           e.target.value = '';
@@ -261,7 +247,6 @@
         switch(scanMode) {
           case 'machine': return '📱 Scan Machine Serial Number';
           case 'part': return parts.length > 0 ? '🔧 Scan Next Part (or scan $Name to submit)' : '🔧 Scan Part Name';
-          case 'reason': return '📝 Scan Reason Code (&Reason)';
           default: return 'Scan Input';
         }
       };
@@ -303,16 +288,6 @@
               </div>
             )}
 
-            {scanMode !== 'machine' && currentPart && (
-              <div className="bg-slate-800 rounded-lg shadow-xl p-6 mb-4 border border-slate-700">
-                <h3 className="text-white font-semibold mb-4">Current Part</h3>
-                <div className="mb-3">
-                  <label className="text-slate-400 text-sm">Part</label>
-                  <p className="text-white text-lg">{currentPart}</p>
-                </div>
-              </div>
-            )}
-
             {parts.length > 0 && (
               <div className="bg-slate-800 rounded-lg shadow-xl p-6 mb-4 border border-slate-700">
                 <h3 className="text-white font-semibold mb-4">Parts List ({parts.length})</h3>
@@ -321,7 +296,6 @@
                     <div key={part.id} className="bg-slate-700 rounded p-4 flex justify-between items-start">
                       <div className="flex-1">
                         <p className="text-white font-semibold">{part.part}</p>
-                        <p className="text-slate-400 text-sm">{part.reason}</p>
                       </div>
                       <button
                         onClick={() => removePart(part.id)}
