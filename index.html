@@ -15,8 +15,8 @@
   <script type="text/babel">
     const { useState, useRef, useEffect } = React;
 
-    // ⚠️ CHANGE THESE SETTINGS ⚠️
-    const SITE_PASSWORD = 'CompassTesting2025!';  // Change this to your desired password
+    // ⚠️ CHANGE GOOGLE SCRIPT URL ⚠️
+    const SITE_PASSWORD = 'CompassTesting2025!';
     const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyzGBzGm4s_N7kk2Gm9VIyuyPGY3lhfy6xLPLY2WrrO9WFwb7CQvJTJUdu5Rt7gDV8MKQ/exec';
 
     function LoginScreen({ onLogin }) {
@@ -133,9 +133,16 @@
             setScanMode('part');
             setStatusMessage('Machine scanned! Now scan a part.');
           } else if (scanMode === 'part') {
-            setCurrentPart(value);
-            setScanMode('reason');
-            setStatusMessage('Part scanned! Scan reason code.');
+            // Check if this is a name (to submit) or a part
+            // If there are parts already added, allow name submission
+            if (parts.length > 0 && isLikelyName(value)) {
+              setTechName(value);
+              handleSubmit(value);
+            } else {
+              setCurrentPart(value);
+              setScanMode('reason');
+              setStatusMessage('Part scanned! Scan reason code.');
+            }
           } else if (scanMode === 'reason') {
             // Add the part with the scanned reason
             setParts([...parts, {
@@ -145,22 +152,19 @@
             }]);
             setCurrentPart('');
             setCurrentReason('');
-            
-            // After first part, ask for technician name
-            if (parts.length === 0) {
-              setScanMode('name');
-              setStatusMessage('Scan your name to submit (or add more parts below).');
-            } else {
-              setScanMode('part');
-              setStatusMessage('Part added! Scan another part or scan name to submit.');
-            }
-          } else if (scanMode === 'name') {
-            setTechName(value);
-            handleSubmit(value);
+            setScanMode('part'); // Always go back to scanning more parts
+            setStatusMessage('Part added! Scan another part or scan name to submit.');
           }
           
           e.target.value = '';
         }
+      };
+
+      // Helper function to detect if scanned value is likely a person's name
+      const isLikelyName = (value) => {
+        // Names typically have spaces and capital letters
+        // Adjust this logic based on your QR code format
+        return value.includes(' ') && /^[A-Z]/.test(value);
       };
 
       const addPart = () => {
@@ -234,7 +238,7 @@
       const getCurrentPrompt = () => {
         switch(scanMode) {
           case 'machine': return '📱 Scan Machine Serial Number';
-          case 'part': return '🔧 Scan Part Name';
+          case 'part': return parts.length > 0 ? '🔧 Scan Next Part (or scan name to submit)' : '🔧 Scan Part Name';
           case 'reason': return '📝 Scan Reason Code';
           case 'name': return '👤 Scan Your Name to Submit';
           default: return 'Scan Input';
@@ -318,27 +322,19 @@
                   ))}
                 </div>
                 
-                {scanMode === 'part' && (
-                  <button
-                    onClick={() => setScanMode('name')}
-                    className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded transition-colors"
-                  >
-                    ✅ Done Adding Parts - Scan Name to Submit
-                  </button>
+                {scanMode === 'part' && parts.length > 0 && (
+                  <div className="mt-4 p-4 bg-blue-900 border border-blue-500 rounded">
+                    <p className="text-blue-100 text-sm text-center">
+                      💡 Tip: Scan a name (with space) to submit, or scan another part to continue
+                    </p>
+                  </div>
                 )}
               </div>
             )}
 
             {scanMode === 'name' && parts.length > 0 && (
               <div className="bg-slate-800 rounded-lg shadow-xl p-6 mb-4 border border-slate-700">
-                <p className="text-slate-300 mb-3">Need to add more parts first?</p>
-                <button
-                  onClick={() => setScanMode('part')}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded transition-colors mb-3"
-                >
-                  ➕ Add More Parts
-                </button>
-                <p className="text-slate-400 text-sm text-center">Or scan your name above to submit</p>
+                <p className="text-slate-300 mb-3">Scan your name above to submit</p>
               </div>
             )}
 
