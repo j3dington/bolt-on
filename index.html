@@ -89,6 +89,31 @@
         }
       }, [scanMode, isAuthenticated, showSuccessScreen]);
 
+      // Define startNewMachine BEFORE the early returns
+      const startNewMachine = () => {
+        console.log('Starting new machine...'); // Debug
+        setShowSuccessScreen(false); // Hide success screen FIRST
+        setMachineSerial('');
+        setParts([]);
+        setCurrentPart('');
+        setCurrentReason('');
+        setTechName('');
+        setScanMode('machine');
+        setIsSubmitting(false);
+        setStatusMessage('Ready for next machine!');
+        setLastSubmission(null);
+        
+        // Focus the input after state updates
+        setTimeout(() => {
+          if (inputRef.current) {
+            inputRef.current.focus();
+          }
+        }, 100);
+        
+        // Clear the status message after a moment
+        setTimeout(() => setStatusMessage(''), 2000);
+      };
+
       if (!isAuthenticated) {
         return <LoginScreen onLogin={() => {
           setIsAuthenticated(true);
