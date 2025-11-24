@@ -69,7 +69,9 @@
     }
 
     function PartsTracker() {
-      const [isAuthenticated, setIsAuthenticated] = useState(false);
+      const [isAuthenticated, setIsAuthenticated] = useState(() => {
+        return sessionStorage.getItem('partsTrackerAuth') === 'true';
+      });
       const [machineSerial, setMachineSerial] = useState('');
       const [parts, setParts] = useState([]);
       const [currentPart, setCurrentPart] = useState('');
@@ -89,10 +91,9 @@
         }
       }, [scanMode, isAuthenticated, showSuccessScreen]);
 
-      // Define startNewMachine BEFORE the early returns
       const startNewMachine = () => {
-        console.log('Starting new machine...'); // Debug
-        setShowSuccessScreen(false); // Hide success screen FIRST
+        console.log('Starting new machine...');
+        setShowSuccessScreen(false);
         setMachineSerial('');
         setParts([]);
         setCurrentPart('');
@@ -103,14 +104,12 @@
         setStatusMessage('Ready for next machine!');
         setLastSubmission(null);
         
-        // Focus the input after state updates
         setTimeout(() => {
           if (inputRef.current) {
             inputRef.current.focus();
           }
         }, 100);
         
-        // Clear the status message after a moment
         setTimeout(() => setStatusMessage(''), 2000);
       };
 
@@ -151,14 +150,12 @@
                   if (e.key === 'Enter') {
                     const value = e.target.value.trim();
                     console.log('Scanned on success screen:', value);
-                    console.log('Checking if contains "next machine":', value.toLowerCase().includes('next machine'));
                     
                     if (value.toLowerCase().includes('next machine') || value.toLowerCase() === 'nextmachine') {
                       console.log('MATCH! Calling startNewMachine()');
                       e.target.value = '';
                       startNewMachine();
                     } else {
-                      console.log('No match. Value was:', value);
                       e.target.value = '';
                     }
                   }
@@ -258,30 +255,6 @@
           setStatusMessage('⚠️ Error submitting. Check console.');
           setIsSubmitting(false);
         }
-      };
-
-      const startNewMachine = () => {
-        console.log('Starting new machine...'); // Debug
-        setShowSuccessScreen(false); // Hide success screen FIRST
-        setMachineSerial('');
-        setParts([]);
-        setCurrentPart('');
-        setCurrentReason('');
-        setTechName('');
-        setScanMode('machine');
-        setIsSubmitting(false);
-        setStatusMessage('Ready for next machine!');
-        setLastSubmission(null);
-        
-        // Focus the input after state updates
-        setTimeout(() => {
-          if (inputRef.current) {
-            inputRef.current.focus();
-          }
-        }, 100);
-        
-        // Clear the status message after a moment
-        setTimeout(() => setStatusMessage(''), 2000);
       };
 
       const getCurrentPrompt = () => {
