@@ -233,9 +233,12 @@
         setTechName('');
         setScanMode('machine');
         setIsSubmitting(false);
-        setStatusMessage('');
+        setStatusMessage('Ready for next machine!');
         setShowSuccessScreen(false);
         setLastSubmission(null);
+        
+        // Clear the status message after a moment
+        setTimeout(() => setStatusMessage(''), 2000);
       };
 
       const getCurrentPrompt = () => {
