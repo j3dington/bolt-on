@@ -15,8 +15,8 @@
   <script type="text/babel">
     const { useState, useRef, useEffect } = React;
 
-    // CREATE_PASSWORD HERE
-    const SITE_PASSWORD = 'CompassTesting2025!';  // THIS WILL BE PASSWORD
+    // ⚠️ CHANGE THESE SETTINGS ⚠️
+    const SITE_PASSWORD = 'CompassTesting2025!';  // Change this to your desired password
     const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyzGBzGm4s_N7kk2Gm9VIyuyPGY3lhfy6xLPLY2WrrO9WFwb7CQvJTJUdu5Rt7gDV8MKQ/exec';
 
     function LoginScreen({ onLogin }) {
@@ -79,6 +79,8 @@
       const [scanMode, setScanMode] = useState('machine');
       const [isSubmitting, setIsSubmitting] = useState(false);
       const [statusMessage, setStatusMessage] = useState('');
+      const [showSuccessScreen, setShowSuccessScreen] = useState(false);
+      const [lastSubmission, setLastSubmission] = useState(null);
       
       const inputRef = useRef(null);
 
@@ -90,6 +92,35 @@
 
       if (!isAuthenticated) {
         return <LoginScreen onLogin={() => setIsAuthenticated(true)} />;
+      }
+
+      if (showSuccessScreen) {
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center p-4">
+            <div className="bg-slate-800 rounded-lg shadow-2xl p-8 w-full max-w-md border border-green-500">
+              <div className="text-center mb-6">
+                <div className="text-6xl mb-4">✅</div>
+                <h2 className="text-3xl font-bold text-green-400 mb-2">Submitted!</h2>
+                <p className="text-slate-300">Data saved to Google Sheets</p>
+              </div>
+              
+              {lastSubmission && (
+                <div className="bg-slate-700 rounded p-4 mb-6 text-sm">
+                  <p className="text-slate-400">Machine: <span className="text-white">{lastSubmission.machineSerial}</span></p>
+                  <p className="text-slate-400">Technician: <span className="text-white">{lastSubmission.techName}</span></p>
+                  <p className="text-slate-400">Parts Replaced: <span className="text-white">{lastSubmission.parts.length}</span></p>
+                </div>
+              )}
+              
+              <button
+                onClick={startNewMachine}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 px-4 rounded transition-colors text-lg"
+              >
+                ➡️ Next Machine
+              </button>
+            </div>
+          </div>
+        );
       }
 
       const handleScan = (e) => {
@@ -160,7 +191,7 @@
         setStatusMessage('Submitting to Google Sheets...');
 
         const submissionData = {
-          secretKey: SITE_PASSWORD,  // DO NOT CHANGE THIS
+          secretKey: SITE_PASSWORD,  // Uses the same password for extra security
           machineSerial,
           techName: scannedName,
           timestamp: new Date().toISOString(),
