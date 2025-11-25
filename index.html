@@ -16,7 +16,7 @@
     const { useState, useRef, useEffect } = React;
 
     const SITE_PASSWORD = 'CompassTesting2025!';
-    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxPyAd_ZowY-A4GAp4L7DDmmASFqbe7gMqq1bxzHmn2ehkanykEIo0ieK2P8FXCKIAR/exec';
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxT3FRaYtHufidJwzQYozgi4gnvFEsXuqVMLSeCQX9jZJ-ictEkeK0DRV1_3WhCfifn/exec';
 
     function LoginScreen({ onLogin }) {
       const [password, setPassword] = useState('');
@@ -136,7 +136,8 @@
                   <p className="text-slate-400">Station: <span className="text-white">{lastSubmission.station}</span></p>
                   <p className="text-slate-400">Machine: <span className="text-white">{lastSubmission.machineSerial}</span></p>
                   <p className="text-slate-400">Technician: <span className="text-white">{lastSubmission.techName}</span></p>
-                  <p className="text-slate-400">Parts Replaced: <span className="text-white">{lastSubmission.parts.length}</span></p>
+                  <p className="text-slate-400">Total Parts: <span className="text-white">{lastSubmission.parts.reduce((sum, part) => sum + Number(part.quantity), 0)}</span></p>
+                  <p className="text-slate-400">Part Types: <span className="text-white">{lastSubmission.parts.length}</span></p>
                 </div>
               )}
               
