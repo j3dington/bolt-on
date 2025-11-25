@@ -62,6 +62,30 @@
       'PSU Universal'
     ];
 
+    // Valid technician names
+    const VALID_NAMES = [
+      'James',
+      'Josh',
+      'Junior',
+      'Nikolai',
+      'Rafa',
+      '$James$',
+      '$Josh$',
+      '$Junior$',
+      '$Nikolai$',
+      '$Rafa$',
+      '$James',
+      '$Josh',
+      '$Junior',
+      '$Nikolai',
+      '$Rafa',
+      'James$',
+      'Josh$',
+      'Junior$',
+      'Nikolai$',
+      'Rafa$'
+    ];
+
     function LoginScreen({ onLogin }) {
       const [password, setPassword] = useState('');
       const [error, setError] = useState('');
