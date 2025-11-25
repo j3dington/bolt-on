@@ -16,7 +16,7 @@
     const { useState, useRef, useEffect } = React;
 
     const SITE_PASSWORD = 'CompassTesting2025!';
-    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxT3FRaYtHufidJwzQYozgi4gnvFEsXuqVMLSeCQX9jZJ-ictEkeK0DRV1_3WhCfifn/exec';
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxMP24Wxg4w_9tN03Fl5dl1AWuGIMrE_SGQC2caigYnrL34cCKjFviEbVLpfxay5BIE/exec';
 
     // Valid parts list
     const VALID_PARTS = [
@@ -130,6 +130,7 @@
       const [parts, setParts] = useState([]);
       const [currentPart, setCurrentPart] = useState('');
       const [currentQuantity, setCurrentQuantity] = useState('');
+      const [currentNote, setCurrentNote] = useState('');
       const [techName, setTechName] = useState('');
       const [scanMode, setScanMode] = useState('station');
       const [isSubmitting, setIsSubmitting] = useState(false);
@@ -154,6 +155,7 @@
         setParts([]);
         setCurrentPart('');
         setCurrentQuantity('');
+        setCurrentNote('');
         setTechName('');
         setScanMode('station');
         setIsSubmitting(false);
@@ -172,13 +174,51 @@
       const showSuccessFeedback = () => {
         setFeedbackType('success');
         setShowFeedback(true);
+        playSuccessSound();
         setTimeout(() => setShowFeedback(false), 1000);
       };
 
       const showErrorFeedback = () => {
         setFeedbackType('error');
         setShowFeedback(true);
+        playErrorSound();
         setTimeout(() => setShowFeedback(false), 1000);
+      };
+
+      const playSuccessSound = () => {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = 800;
+        oscillator.type = 'sine';
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.1);
+      };
+
+      const playErrorSound = () => {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = 300;
+        oscillator.type = 'sawtooth';
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.2);
       };
 
       if (!isAuthenticated) {
@@ -348,7 +388,8 @@
               addPart(value);
             } else {
               setCurrentQuantity(value);
-              addPart(value);
+              setScanMode('note');
+              setStatusMessage('Quantity entered! Add note or skip.');
               showSuccessFeedback();
             }
           }
@@ -357,18 +398,25 @@
         }
       };
 
-      const addPart = (qty) => {
-        if (currentPart && qty) {
+      const addPart = () => {
+        if (currentPart && currentQuantity) {
           setParts([...parts, {
             part: currentPart,
-            quantity: qty,
+            quantity: currentQuantity,
+            note: currentNote || 'None',
             id: Date.now()
           }]);
           setCurrentPart('');
           setCurrentQuantity('');
+          setCurrentNote('');
           setScanMode('part');
           setStatusMessage('Part added! Scan another part or scan $Name to submit.');
         }
+      };
+
+      const skipNote = () => {
+        addPart();
+        showSuccessFeedback();
       };
 
       const removePart = (id) => {
@@ -422,6 +470,7 @@
           case 'machine': return '📱 Scan Machine Serial Number';
           case 'part': return parts.length > 0 ? '🔧 Scan Next Part (or scan $Name to submit)' : '🔧 Scan Part Name';
           case 'quantity': return '🔢 Scan or Enter Quantity';
+          case 'note': return '📝 Add Note (Optional)';
           default: return 'Scan Input';
         }
       };
@@ -529,13 +578,54 @@
               </div>
             )}
 
-            {currentPart && scanMode === 'quantity' && (
+            {currentPart && (scanMode === 'quantity' || scanMode === 'note') && (
               <div className="bg-slate-800 rounded-lg shadow-xl p-6 mb-4 border border-slate-700">
                 <h3 className="text-white font-semibold mb-4">Current Part</h3>
                 <div className="mb-3">
                   <label className="text-slate-400 text-sm">Part</label>
                   <p className="text-white text-lg">{currentPart}</p>
                 </div>
+                {currentQuantity && (
+                  <div className="mb-3">
+                    <label className="text-slate-400 text-sm">Quantity</label>
+                    <p className="text-white text-lg">{currentQuantity}</p>
+                  </div>
+                )}
+                {scanMode === 'note' && (
+                  <div>
+                    <label className="text-slate-400 text-sm block mb-2">Note (Optional)</label>
+                    <input
+                      type="text"
+                      value={currentNote}
+                      onChange={(e) => setCurrentNote(e.target.value)}
+                      placeholder="Type note here..."
+                      className="w-full p-3 mb-3 bg-slate-700 border border-slate-600 rounded text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          addPart();
+                          showSuccessFeedback();
+                        }
+                      }}
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={skipNote}
+                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded transition-colors"
+                      >
+                        Skip Note
+                      </button>
+                      <button
+                        onClick={() => {
+                          addPart();
+                          showSuccessFeedback();
+                        }}
+                        className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded transition-colors"
+                      >
+                        Add Part
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -548,6 +638,9 @@
                       <div className="flex-1">
                         <p className="text-white font-semibold">{part.part}</p>
                         <p className="text-slate-300 text-sm">Qty: {part.quantity}</p>
+                        {part.note && part.note !== 'None' && (
+                          <p className="text-slate-400 text-sm italic">Note: {part.note}</p>
+                        )}
                       </div>
                       <button
                         onClick={() => removePart(part.id)}
