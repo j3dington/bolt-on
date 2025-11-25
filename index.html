@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Parts Tracker</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <script type="text/babel">
+    const { useState, useRef, useEffect } = React;
+
+    const SITE_PASSWORD = 'CompassTesting2025!';
+    const GOOGLE_SCRIPT_URL = 'PASTE_YOUR_WEB_APP_URL_HERE';
+
+    // Valid parts list
+    const VALID_PARTS = [
+      'Beagle Bone Control Boards',
+      'AM Logic Control Boards',
+      'Xilinx 7007 Control Boards',
+      '4V 10 Control Boards',
+      '6V10 Control Boards',
+      'APW 12 PSU',
+      'APW 121215 a PSU',
+      'APW 121215 b PSU',
+      'APW 121215 c PSU',
+      'APW 121215 d PSU',
+      'APW 121215 e PSU',
+      'APW 121215 f PSU',
+      'APW 121417 a PSU',
+      'APW 121417 b PSU',
+      'AM Hashboard Ribbon Cable',
+      'WM Adapter Plate Cables',
+      'Fan Adapter Cables',
+      'Fan Extention Cables',
+      'AM PSU Power Cables',
+      'AM PSU Data/ Cables',
+      'PSU Fan Grill Screws',
+      'Miner Fan Grill Screws - silver',
+      'Miner Fan Grill Screws - black',
+      'Bus Bar Screws',
+      'Small Miner Screws',
+      'Chassis Screws',
+      '60 mm Fans',
+      '120mm Fans 4 pin (Antminer)',
+      '120mm Fans Barrel (Antminer)',
+      '140 mm Fans (Whatsminer)',
+      'S21 Fans',
+      'WM P222B',
+      'WM P221B',
+      'WM P221C',
+      'WM P222C',
+      '120mm Fan Grills (Black)',
+      '140mm Fan Grills (Silver)',
+      '140mm Fan Grills (Black)',
+      '60mm Fan Grills',
+      'PSU Universal'
+    ];
+
+    // Valid technician names
+    const VALID_NAMES = [
+      'James',
+      'Josh',
+      'Junior',
+      'Nikolai',
+      'Rafa'
+    ];
+
+    function LoginScreen({ onLogin }) {
+      const [password, setPassword] = useState('');
+      const [error, setError] = useState('');
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        if (password === SITE_PASSWORD) {
+          onLogin();
+        } else {
+          setError('Incorrect password. Try again.');
+          setPassword('');
+        }
+      };
+
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center p-4">
+          <div className="bg-slate-800 rounded-lg shadow-2xl p-8 w-full max-w-md border border-slate-700">
+            <div className="text-center mb-6">
+              <h1 className="text-3xl font-bold text-white mb-2">🔒 Parts Tracker</h1>
+              <p className="text-slate-400">Enter password to access</p>
+            </div>
+            
+            <form onSubmit={handleSubmit}>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Password"
+                className="w-full p-4 bg-slate-700 border border-slate-600 rounded text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none text-lg mb-4"
+                autoFocus
+              />
+              
+              {error && (
+                <div className="bg-red-900 border border-red-500 rounded p-3 mb-4">
+                  <p className="text-red-100 text-sm">{error}</p>
+                </div>
+              )}
+              
+              <button
+                type="submit"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 px-4 rounded transition-colors text-lg"
+              >
+                🔓 Unlock Tracker
+              </button>
+            </form>
+          </div>
+        </div>
+      );
+    }
+
+    function PartsTracker() {
+      const [isAuthenticated, setIsAuthenticated] = useState(() => {
+        return sessionStorage.getItem('partsTrackerAuth') === 'true';
+      });
+      const [station, setStation] = useState('');
+      const [machineSerial, setMachineSerial] = useState('');
+      const [parts, setParts] = useState([]);
+      const [currentPart, setCurrentPart] = useState('');
+      const [currentQuantity, setCurrentQuantity] = useState('');
+      const [techName, setTechName] = useState('');
+      const [scanMode, setScanMode] = useState('station');
+      const [isSubmitting, setIsSubmitting] = useState(false);
+      const [statusMessage, setStatusMessage] = useState('');
+      const [showSuccessScreen, setShowSuccessScreen] = useState(false);
+      const [showConfirmation, setShowConfirmation] = useState(false);
+      const [pendingTechName, setPendingTechName] = useState('');
+      const [showFeedback, setShowFeedback] = useState(false);
+      const [feedbackType, setFeedbackType] = useState('success');
+      const [lastSubmission, setLastSubmission] = useState(null);
+      
+      const inputRef = useRef(null);
+
+      useEffect(() => {
+        if (inputRef.current && isAuthenticated && !showSuccessScreen && !showConfirmation) {
+          inputRef.current.focus();
+        }
+      }, [scanMode, isAuthenticated, showSuccessScreen, showConfirmation]);
+
+      const startNewMachine = () => {
+        setShowSuccessScreen(false);
+        setShowConfirmation(false);
+        setStation('');
+        setMachineSerial('');
+        setParts([]);
+        setCurrentPart('');
+        setCurrentQuantity('');
+        setTechName('');
+        setPendingTechName('');
+        setScanMode('station');
+        setIsSubmitting(false);
+        setStatusMessage('Ready for next machine!');
+        setLastSubmission(null);
+        
+        setTimeout(() => {
+          if (inputRef.current) {
+            inputRef.current.focus();
+          }
+        }, 100);
+        
+        setTimeout(() => setStatusMessage(''), 2000);
+      };
+
+      const showSuccessFeedback = () => {
+        setFeedbackType('success');
+        setShowFeedback(true);
+        setTimeout(() => setShowFeedback(false), 1000);
+      };
+
+      const showErrorFeedback = () => {
+        setFeedbackType('error');
+        setShowFeedback(true);
+        setTimeout(() => setShowFeedback(false), 1000);
+      };
+
+      if (!isAuthenticated) {
+        return <LoginScreen onLogin={() => {
+          setIsAuthenticated(true);
+          sessionStorage.setItem('partsTrackerAuth', 'true');
+        }} />;
+      }
+
+      if (showConfirmation) {
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center p-4">
+            <div className="bg-slate-800 rounded-lg shadow-2xl p-8 w-full max-w-md border border-yellow-500">
+              <div className="text-center mb-6">
+                <div className="text-6xl mb-4">⚠️</div>
+                <h2 className="text-3xl font-bold text-yellow-400 mb-2">Confirm Submission</h2>
+                <p className="text-slate-300">Please verify the information before submitting</p>
+              </div>
+              
+              <div className="bg-slate-700 rounded p-4 mb-6 text-sm space-y-2">
+                <p className="text-slate-400">Station: <span className="text-white font-semibold">{station}</span></p>
+                <p className="text-slate-400">Machine: <span className="text-white font-semibold">{machineSerial}</span></p>
+                <p className="text-slate-400">Technician: <span className="text-white font-semibold">{pendingTechName}</span></p>
+                <p className="text-slate-400">Total Parts: <span className="text-white font-semibold">{parts.reduce((sum, part) => sum + Number(part.quantity), 0)}</span></p>
+              </div>
+
+              <div className="space-y-3">
+                <button
+                  onClick={() => handleSubmit(pendingTechName)}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-4 px-4 rounded transition-colors text-lg"
+                >
+                  ✓ Confirm & Submit
+                </button>
+                <button
+                  onClick={() => {
+                    setShowConfirmation(false);
+                    setPendingTechName('');
+                    setScanMode('part');
+                  }}
+                  className="w-full bg-slate-600 hover:bg-slate-700 text-white font-semibold py-3 px-4 rounded transition-colors"
+                >
+                  ← Go Back
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      if (showSuccessScreen) {
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center p-4">
+            <div className="bg-slate-800 rounded-lg shadow-2xl p-8 w-full max-w-md border border-green-500">
+              <div className="text-center mb-6">
+                <div className="text-6xl mb-4">✅</div>
+                <h2 className="text-3xl font-bold text-green-400 mb-2">Submitted!</h2>
+                <p className="text-slate-300">Data saved to Google Sheets</p>
+              </div>
+              
+              {lastSubmission && (
+                <div className="bg-slate-700 rounded p-4 mb-6 text-sm">
+                  <p className="text-slate-400">Station: <span className="text-white">{lastSubmission.station}</span></p>
+                  <p className="text-slate-400">Machine: <span className="text-white">{lastSubmission.machineSerial}</span></p>
+                  <p className="text-slate-400">Technician: <span className="text-white">{lastSubmission.techName}</span></p>
+                  <p className="text-slate-400">Total Parts: <span className="text-white">{lastSubmission.parts.reduce((sum, part) => sum + Number(part.quantity), 0)}</span></p>
+                  <p className="text-slate-400">Part Types: <span className="text-white">{lastSubmission.parts.length}</span></p>
+                </div>
+              )}
+              
+              <div className="bg-blue-900 border border-blue-500 rounded-lg p-4 mb-4">
+                <p className="text-blue-100 text-sm text-center">
+                  📱 Scan "Next Machine" QR code or click button below
+                </p>
+              </div>
+              
+              <input
+                type="text"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const value = e.target.value.trim();
+                    if (value.toLowerCase().includes('next machine') || value.toLowerCase() === 'nextmachine') {
+                      e.target.value = '';
+                      startNewMachine();
+                    } else {
+                      e.target.value = '';
+                    }
+                  }
+                }}
+                placeholder="Scan 'Next Machine' QR code..."
+                className="w-full p-3 mb-4 bg-slate-700 border border-slate-600 rounded text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none text-lg"
+                autoFocus
+              />
+              
+              <button
+                onClick={startNewMachine}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 px-4 rounded transition-colors text-lg"
+              >
+                ➡️ Next Machine
+              </button>
+            </div>
+          </div>
+        );
+      }
+
+      const handleScan = (e) => {
+        if (e.key === 'Enter') {
+          const value = e.target.value.trim();
+          if (!value) return;
+
+          // CRITICAL: Check for $ symbol FIRST before anything else
+          const containsDollarSign = value.includes('$');
+
+          if (scanMode === 'station') {
+            if (value.toLowerCase().includes('bolt-on 1') || value.toLowerCase().includes('bolton1') || value === '1') {
+              setStation('Bolt-On 1');
+              setScanMode('machine');
+              setStatusMessage('Bolt-On 1 selected! Scan machine serial.');
+              showSuccessFeedback();
+            } else if (value.toLowerCase().includes('bolt-on 2') || value.toLowerCase().includes('bolton2') || value === '2') {
+              setStation('Bolt-On 2');
+              setScanMode('machine');
+              setStatusMessage('Bolt-On 2 selected! Scan machine serial.');
+              showSuccessFeedback();
+            } else {
+              setStatusMessage('⚠️ Please scan Bolt-On QR code, type 1 or 2, or click a button');
+              showErrorFeedback();
+            }
+          } else if (scanMode === 'machine') {
+            // STEP 1: Reject names immediately (has $ symbol)
+            if (containsDollarSign) {
+              setStatusMessage('⚠️ That looks like a name, not a serial number!');
+              showErrorFeedback();
+              e.target.value = '';
+              return;
+            }
+            
+            // STEP 2: Reject if it's in the parts list
+            if (VALID_PARTS.includes(value)) {
+              setStatusMessage('⚠️ That looks like a part name, not a serial number!');
+              showErrorFeedback();
+              e.target.value = '';
+              return;
+            }
+            
+            // STEP 3: Check structure
+            const hasOnlyNumbers = /^\d+$/.test(value);
+            const hasOnlyLetters = /^[a-zA-Z\s]+$/.test(value);
+            const hasBothLettersAndNumbers = /[a-zA-Z]/.test(value) && /\d/.test(value);
+            
+            if (hasOnlyNumbers && value.length <= 3) {
+              setStatusMessage('⚠️ That looks like a quantity, not a serial number!');
+              showErrorFeedback();
+            } else if (hasOnlyLetters) {
+              setStatusMessage('⚠️ Serial numbers should contain numbers and letters!');
+              showErrorFeedback();
+            } else if (!hasBothLettersAndNumbers && value !== 'SN Missing or Damaged') {
+              setStatusMessage('⚠️ Serial numbers must have both letters AND numbers!');
+              showErrorFeedback();
+            } else {
+              setMachineSerial(value);
+              setScanMode('part');
+              setStatusMessage('Machine scanned! Now scan a part.');
+              showSuccessFeedback();
+            }
+          } else if (scanMode === 'part') {
+            if (parts.length > 0 && containsDollarSign) {
+              const cleanName = value.replace(/\$/g, '');
+              
+              if (!VALID_NAMES.includes(cleanName)) {
+                setStatusMessage('⚠️ Technician name not recognized! Please scan a valid name.');
+                showErrorFeedback();
+              } else {
+                setPendingTechName(cleanName);
+                setShowConfirmation(true);
+                showSuccessFeedback();
+              }
+            } else if (containsDollarSign) {
+              setStatusMessage('⚠️ Add at least one part before submitting!');
+              showErrorFeedback();
+            } else if (/^\d+$/.test(value) && value.length <= 3) {
+              setStatusMessage('⚠️ That looks like a quantity, not a part name!');
+              showErrorFeedback();
+            } else {
+              if (!VALID_PARTS.includes(value)) {
+                setStatusMessage('⚠️ Part not found! Please scan a valid part from the approved list.');
+                showErrorFeedback();
+              } else {
+                setCurrentPart(value);
+                setScanMode('quantity');
+                setStatusMessage('Part scanned! Scan or enter quantity.');
+                showSuccessFeedback();
+              }
+            }
+          } else if (scanMode === 'quantity') {
+            const isNumber = /^\d+$/.test(value);
+            
+            if (!isNumber) {
+              setStatusMessage('⚠️ Quantity must be a number!');
+              showErrorFeedback();
+            } else if (Number(value) === 0) {
+              setStatusMessage('⚠️ Quantity cannot be zero!');
+              showErrorFeedback();
+            } else if (Number(value) > 100) {
+              setStatusMessage('⚠️ Quantity seems too high (>100). Correct?');
+              showErrorFeedback();
+              setCurrentQuantity(value);
+              addPart(value);
+            } else {
+              setCurrentQuantity(value);
+              addPart(value);
+              showSuccessFeedback();
+            }
+          }
+          
+          e.target.value = '';
+        }
+      };
+
+      const addPart = (qty) => {
+        if (currentPart && qty) {
+          setParts([...parts, {
+            part: currentPart,
+            quantity: qty,
+            id: Date.now()
+          }]);
+          setCurrentPart('');
+          setCurrentQuantity('');
+          setScanMode('part');
+          setStatusMessage('Part added! Scan another part or scan $Name to submit.');
+        }
+      };
+
+      const removePart = (id) => {
+        setParts(parts.filter(p => p.id !== id));
+      };
+
+      const handleSubmit = async (scannedName = techName) => {
+        if (!station || !machineSerial || parts.length === 0 || !scannedName) {
+          alert('Please fill in station, machine serial, at least one part, and technician name');
+          return;
+        }
+
+        setShowConfirmation(false);
+        setIsSubmitting(true);
+        setStatusMessage('Submitting to Google Sheets...');
+
+        const submissionData = {
+          secretKey: SITE_PASSWORD,
+          station: station,
+          machineSerial,
+          techName: scannedName,
+          timestamp: new Date().toISOString(),
+          parts: parts
+        };
+
+        try {
+          const response = await fetch(GOOGLE_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(submissionData)
+          });
+
+          setTechName(scannedName);
+          setLastSubmission(submissionData);
+          setShowSuccessScreen(true);
+          setIsSubmitting(false);
+
+        } catch (error) {
+          console.error('Submission error:', error);
+          setStatusMessage('⚠️ Error submitting. Check console.');
+          setIsSubmitting(false);
+          showErrorFeedback();
+        }
+      };
+
+      const getCurrentPrompt = () => {
+        switch(scanMode) {
+          case 'station': return '🏭 Scan Bolt-On 1 or Bolt-On 2 QR Code';
+          case 'machine': return '📱 Scan Machine Serial Number';
+          case 'part': return parts.length > 0 ? '🔧 Scan Next Part (or scan $Name to submit)' : '🔧 Scan Part Name';
+          case 'quantity': return '🔢 Scan or Enter Quantity';
+          default: return 'Scan Input';
+        }
+      };
+
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-4">
+          {/* Visual Feedback Overlay */}
+          {showFeedback && (
+            <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+              <div className={`${feedbackType === 'success' ? 'bg-green-500' : 'bg-red-500'} rounded-full p-8 shadow-2xl animate-pulse`}>
+                <div className="text-white text-8xl">
+                  {feedbackType === 'success' ? '✓' : '✗'}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="max-w-2xl mx-auto">
+            
+            <div className="bg-slate-800 rounded-lg shadow-xl p-6 mb-4 border border-slate-700">
+              <h1 className="text-3xl font-bold text-white mb-2">⚙️ Parts Tracker</h1>
+              <p className="text-slate-400">Scan to log replacements</p>
+              <button
+                onClick={startNewMachine}
+                className="mt-3 w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded transition-colors text-sm"
+              >
+                🔄 Start Over
+              </button>
+            </div>
+
+            <div className="bg-blue-900 border-2 border-blue-500 rounded-lg p-4 mb-4">
+              <p className="text-blue-100 text-lg font-semibold">{getCurrentPrompt()}</p>
+            </div>
+
+            {statusMessage && (
+              <div className={`${statusMessage.includes('⚠️') ? 'bg-red-900 border-red-500' : 'bg-green-900 border-green-500'} border rounded-lg p-3 mb-4`}>
+                <p className={`${statusMessage.includes('⚠️') ? 'text-red-100' : 'text-green-100'}`}>{statusMessage}</p>
+              </div>
+            )}
+
+            <div className="bg-slate-800 rounded-lg shadow-xl p-6 mb-4 border border-slate-700">
+              <input
+                ref={inputRef}
+                type="text"
+                onKeyDown={handleScan}
+                placeholder={
+                  scanMode === 'station' ? "Scan QR code or type 1 or 2..." :
+                  scanMode === 'machine' ? "Scan or type serial number..." :
+                  "Scanner ready..."
+                }
+                className="w-full p-3 bg-slate-700 border border-slate-600 rounded text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none text-lg"
+                autoFocus
+              />
+              {scanMode === 'station' && (
+                <div className="mt-3 flex gap-2">
+                  <button
+                    onClick={() => {
+                      setStation('Bolt-On 1');
+                      setScanMode('machine');
+                      setStatusMessage('Bolt-On 1 selected! Scan machine serial.');
+                    }}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded transition-colors"
+                  >
+                    Bolt-On 1
+                  </button>
+                  <button
+                    onClick={() => {
+                      setStation('Bolt-On 2');
+                      setScanMode('machine');
+                      setStatusMessage('Bolt-On 2 selected! Scan machine serial.');
+                    }}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded transition-colors"
+                  >
+                    Bolt-On 2
+                  </button>
+                </div>
+              )}
+              {scanMode === 'machine' && (
+                <div className="mt-3">
+                  <button
+                    onClick={() => {
+                      setMachineSerial('SN Missing or Damaged');
+                      setScanMode('part');
+                      setStatusMessage('Serial marked as missing/damaged. Scan a part.');
+                    }}
+                    className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-semibold py-3 px-4 rounded transition-colors"
+                  >
+                    SN Missing or Damaged
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {station && (
+              <div className="bg-slate-800 rounded-lg shadow-xl p-4 mb-4 border border-slate-700">
+                <label className="text-slate-400 text-sm">Station</label>
+                <p className="text-white text-xl font-semibold">{station}</p>
+              </div>
+            )}
+
+            {machineSerial && (
+              <div className="bg-slate-800 rounded-lg shadow-xl p-4 mb-4 border border-slate-700">
+                <label className="text-slate-400 text-sm">Machine Serial</label>
+                <p className="text-white text-xl font-semibold">{machineSerial}</p>
+              </div>
+            )}
+
+            {currentPart && scanMode === 'quantity' && (
+              <div className="bg-slate-800 rounded-lg shadow-xl p-6 mb-4 border border-slate-700">
+                <h3 className="text-white font-semibold mb-4">Current Part</h3>
+                <div className="mb-3">
+                  <label className="text-slate-400 text-sm">Part</label>
+                  <p className="text-white text-lg">{currentPart}</p>
+                </div>
+              </div>
+            )}
+
+            {parts.length > 0 && (
+              <div className="bg-slate-800 rounded-lg shadow-xl p-6 mb-4 border border-slate-700">
+                <h3 className="text-white font-semibold mb-4">Parts List ({parts.length})</h3>
+                <div className="space-y-3">
+                  {parts.map((part) => (
+                    <div key={part.id} className="bg-slate-700 rounded p-4 flex justify-between items-start">
+                      <div className="flex-1">
+                        <p className="text-white font-semibold">{part.part}</p>
+                        <p className="text-slate-300 text-sm">Qty: {part.quantity}</p>
+                      </div>
+                      <button
+                        onClick={() => removePart(part.id)}
+                        className="text-red-400 hover:text-red-300 p-2 text-xl"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                
+                {scanMode === 'part' && parts.length > 0 && (
+                  <div className="mt-4 p-4 bg-blue-900 border border-blue-500 rounded">
+                    <p className="text-blue-100 text-sm text-center">
+                      💡 Tip: Scan a name with $ (e.g., $James) to submit
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<PartsTracker />);
+  </script>
+</body>
+</html>
