@@ -377,8 +377,8 @@
             </div>
 
             {statusMessage && (
-              <div className="bg-green-900 border border-green-500 rounded-lg p-3 mb-4">
-                <p className="text-green-100">{statusMessage}</p>
+              <div className={`${statusMessage.includes('⚠️') ? 'bg-red-900 border-red-500' : 'bg-green-900 border-green-500'} border rounded-lg p-3 mb-4`}>
+                <p className={`${statusMessage.includes('⚠️') ? 'text-red-100' : 'text-green-100'}`}>{statusMessage}</p>
               </div>
             )}
 
