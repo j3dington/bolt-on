@@ -82,6 +82,10 @@
       const [isSubmitting, setIsSubmitting] = useState(false);
       const [statusMessage, setStatusMessage] = useState('');
       const [showSuccessScreen, setShowSuccessScreen] = useState(false);
+      const [showConfirmation, setShowConfirmation] = useState(false);
+      const [pendingTechName, setPendingTechName] = useState('');
+      const [showFeedback, setShowFeedback] = useState(false);
+      const [feedbackType, setFeedbackType] = useState('success');
       const [lastSubmission, setLastSubmission] = useState(null);
       
       const inputRef = useRef(null);
@@ -94,12 +98,14 @@
 
       const startNewMachine = () => {
         setShowSuccessScreen(false);
+        setShowConfirmation(false);
         setStation('');
         setMachineSerial('');
         setParts([]);
         setCurrentPart('');
         setCurrentQuantity('');
         setTechName('');
+        setPendingTechName('');
         setScanMode('station');
         setIsSubmitting(false);
         setStatusMessage('Ready for next machine!');
@@ -114,11 +120,63 @@
         setTimeout(() => setStatusMessage(''), 2000);
       };
 
+      const showSuccessFeedback = () => {
+        setFeedbackType('success');
+        setShowFeedback(true);
+        setTimeout(() => setShowFeedback(false), 1000);
+      };
+
+      const showErrorFeedback = () => {
+        setFeedbackType('error');
+        setShowFeedback(true);
+        setTimeout(() => setShowFeedback(false), 1000);
+      };
+
       if (!isAuthenticated) {
         return <LoginScreen onLogin={() => {
           setIsAuthenticated(true);
           sessionStorage.setItem('partsTrackerAuth', 'true');
         }} />;
+      }
+
+      if (showConfirmation) {
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center p-4">
+            <div className="bg-slate-800 rounded-lg shadow-2xl p-8 w-full max-w-md border border-yellow-500">
+              <div className="text-center mb-6">
+                <div className="text-6xl mb-4">⚠️</div>
+                <h2 className="text-3xl font-bold text-yellow-400 mb-2">Confirm Submission</h2>
+                <p className="text-slate-300">Please verify the information before submitting</p>
+              </div>
+              
+              <div className="bg-slate-700 rounded p-4 mb-6 text-sm space-y-2">
+                <p className="text-slate-400">Station: <span className="text-white font-semibold">{station}</span></p>
+                <p className="text-slate-400">Machine: <span className="text-white font-semibold">{machineSerial}</span></p>
+                <p className="text-slate-400">Technician: <span className="text-white font-semibold">{pendingTechName}</span></p>
+                <p className="text-slate-400">Total Parts: <span className="text-white font-semibold">{parts.reduce((sum, part) => sum + Number(part.quantity), 0)}</span></p>
+              </div>
+
+              <div className="space-y-3">
+                <button
+                  onClick={() => handleSubmit(pendingTechName)}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-4 px-4 rounded transition-colors text-lg"
+                >
+                  ✓ Confirm & Submit
+                </button>
+                <button
+                  onClick={() => {
+                    setShowConfirmation(false);
+                    setPendingTechName('');
+                    setScanMode('part');
+                  }}
+                  className="w-full bg-slate-600 hover:bg-slate-700 text-white font-semibold py-3 px-4 rounded transition-colors"
+                >
+                  ← Go Back
+                </button>
+              </div>
+            </div>
+          </div>
+        );
       }
 
       if (showSuccessScreen) {
@@ -242,6 +300,7 @@
           return;
         }
 
+        setShowConfirmation(false);
         setIsSubmitting(true);
         setStatusMessage('Submitting to Google Sheets...');
 
@@ -264,6 +323,7 @@
             body: JSON.stringify(submissionData)
           });
 
+          setTechName(scannedName);
           setLastSubmission(submissionData);
           setShowSuccessScreen(true);
           setIsSubmitting(false);
@@ -272,6 +332,7 @@
           console.error('Submission error:', error);
           setStatusMessage('⚠️ Error submitting. Check console.');
           setIsSubmitting(false);
+          showErrorFeedback();
         }
       };
 
@@ -287,11 +348,28 @@
 
       return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-4">
+          {/* Visual Feedback Overlay */}
+          {showFeedback && (
+            <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+              <div className={`${feedbackType === 'success' ? 'bg-green-500' : 'bg-red-500'} rounded-full p-8 shadow-2xl animate-pulse`}>
+                <div className="text-white text-8xl">
+                  {feedbackType === 'success' ? '✓' : '✗'}
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="max-w-2xl mx-auto">
             
             <div className="bg-slate-800 rounded-lg shadow-xl p-6 mb-4 border border-slate-700">
               <h1 className="text-3xl font-bold text-white mb-2">⚙️ Parts Tracker</h1>
               <p className="text-slate-400">Scan to log replacements</p>
+              <button
+                onClick={startNewMachine}
+                className="mt-3 w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded transition-colors text-sm"
+              >
+                🔄 Start Over
+              </button>
             </div>
 
             <div className="bg-blue-900 border-2 border-blue-500 rounded-lg p-4 mb-4">
