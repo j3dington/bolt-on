@@ -16,7 +16,7 @@
     const { useState, useRef, useEffect } = React;
 
     const SITE_PASSWORD = 'CompassTesting2025!';
-    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz95FNVssHfWBBBiJ7GjlTDuyQ4wAg_D-2Rs13m2y_2OmXWTeLVAyKluGOEaP8QKr7q/exec';
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwbmnkAf9gWim8fGUFVhvsaV1VfmkFiYXvKHc-N2Tl2lqB7CXMctfScFffBRnldkJzq/exec';
 
     function LoginScreen({ onLogin }) {
       const [password, setPassword] = useState('');
@@ -72,12 +72,13 @@
       const [isAuthenticated, setIsAuthenticated] = useState(() => {
         return sessionStorage.getItem('partsTrackerAuth') === 'true';
       });
+      const [station, setStation] = useState('');
       const [machineSerial, setMachineSerial] = useState('');
       const [parts, setParts] = useState([]);
       const [currentPart, setCurrentPart] = useState('');
       const [currentQuantity, setCurrentQuantity] = useState('');
       const [techName, setTechName] = useState('');
-      const [scanMode, setScanMode] = useState('machine');
+      const [scanMode, setScanMode] = useState('station');
       const [isSubmitting, setIsSubmitting] = useState(false);
       const [statusMessage, setStatusMessage] = useState('');
       const [showSuccessScreen, setShowSuccessScreen] = useState(false);
@@ -92,14 +93,14 @@
       }, [scanMode, isAuthenticated, showSuccessScreen]);
 
       const startNewMachine = () => {
-        console.log('Starting new machine...');
         setShowSuccessScreen(false);
+        setStation('');
         setMachineSerial('');
         setParts([]);
         setCurrentPart('');
         setCurrentQuantity('');
         setTechName('');
-        setScanMode('machine');
+        setScanMode('station');
         setIsSubmitting(false);
         setStatusMessage('Ready for next machine!');
         setLastSubmission(null);
@@ -132,6 +133,7 @@
               
               {lastSubmission && (
                 <div className="bg-slate-700 rounded p-4 mb-6 text-sm">
+                  <p className="text-slate-400">Station: <span className="text-white">{lastSubmission.station}</span></p>
                   <p className="text-slate-400">Machine: <span className="text-white">{lastSubmission.machineSerial}</span></p>
                   <p className="text-slate-400">Technician: <span className="text-white">{lastSubmission.techName}</span></p>
                   <p className="text-slate-400">Parts Replaced: <span className="text-white">{lastSubmission.parts.length}</span></p>
@@ -180,7 +182,19 @@
 
           const isName = value.includes('$');
 
-          if (scanMode === 'machine') {
+          if (scanMode === 'station') {
+            if (value.toLowerCase().includes('bolt-on 1') || value.toLowerCase().includes('bolton1')) {
+              setStation('Bolt-On 1');
+              setScanMode('machine');
+              setStatusMessage('Bolt-On 1 selected! Scan machine serial.');
+            } else if (value.toLowerCase().includes('bolt-on 2') || value.toLowerCase().includes('bolton2')) {
+              setStation('Bolt-On 2');
+              setScanMode('machine');
+              setStatusMessage('Bolt-On 2 selected! Scan machine serial.');
+            } else {
+              setStatusMessage('⚠️ Please scan Bolt-On 1 or Bolt-On 2 QR code');
+            }
+          } else if (scanMode === 'machine') {
             setMachineSerial(value);
             setScanMode('part');
             setStatusMessage('Machine scanned! Now scan a part.');
@@ -222,8 +236,8 @@
       };
 
       const handleSubmit = async (scannedName = techName) => {
-        if (!machineSerial || parts.length === 0 || !scannedName) {
-          alert('Please fill in machine serial, at least one part, and technician name');
+        if (!station || !machineSerial || parts.length === 0 || !scannedName) {
+          alert('Please fill in station, machine serial, at least one part, and technician name');
           return;
         }
 
@@ -232,6 +246,7 @@
 
         const submissionData = {
           secretKey: SITE_PASSWORD,
+          station: station,
           machineSerial,
           techName: scannedName,
           timestamp: new Date().toISOString(),
@@ -261,6 +276,7 @@
 
       const getCurrentPrompt = () => {
         switch(scanMode) {
+          case 'station': return '🏭 Scan Bolt-On 1 or Bolt-On 2 QR Code';
           case 'machine': return '📱 Scan Machine Serial Number';
           case 'part': return parts.length > 0 ? '🔧 Scan Next Part (or scan $Name to submit)' : '🔧 Scan Part Name';
           case 'quantity': return '🔢 Scan or Enter Quantity';
@@ -297,6 +313,13 @@
                 autoFocus
               />
             </div>
+
+            {station && (
+              <div className="bg-slate-800 rounded-lg shadow-xl p-4 mb-4 border border-slate-700">
+                <label className="text-slate-400 text-sm">Station</label>
+                <p className="text-white text-xl font-semibold">{station}</p>
+              </div>
+            )}
 
             {machineSerial && (
               <div className="bg-slate-800 rounded-lg shadow-xl p-4 mb-4 border border-slate-700">
